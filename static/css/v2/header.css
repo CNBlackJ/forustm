@@ -1,0 +1,40 @@
+.header-container {
+  height: 60px;
+  line-height: 60px;
+  background-color: #fff;
+  box-shadow: 0 0 1px rgba(0,0,0,0.15);
+}
+
+.header-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  flex-direction: row;
+}
+
+.logo a {
+  height: 60px;
+  line-height: 60px;
+}
+
+.logo-img {
+  height: 60px;
+  width: 60px;
+}
+
+.logo-title {
+  cursor: pointer;
+}
+
+.global-search {
+  margin-left: 60px;
+}
+
+.menus a {
+  padding-left: 6px;
+  font-size: 13px;
+}

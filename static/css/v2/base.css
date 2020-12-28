@@ -1,0 +1,81 @@
+html, body {
+	color: #222;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+}
+
+h1 {
+	font-size: 30px;
+}
+
+h2 {
+	font-size: 26px;
+}
+
+h3 {
+	font-size: 20.5px;
+}
+
+h4 {
+	font-size: 19.2px;
+}
+
+h5 {
+	font-size: 18px;
+}
+
+h6 {
+	font-size: 16px;
+}
+
+hr {
+	border: 0;
+	border-top: 1px solid #ccc;
+}
+
+a {
+	text-decoration: none;
+	color: #222;
+}
+
+.layout-container {
+  height: 100%;
+}
+
+.layout-wrapper {
+  height: 100%;
+  background-color: #e9eef4;
+}
+
+.layout-max-width {
+  width: 1200px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.main-content-container {
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.left-content {
+  width: 70%;
+
+  background-color: #fff;
+  margin-top: 16px;
+  margin-right: 8px;
+  padding: 16px;
+}
+
+.right-content {
+  width: 30%;
+}
+
+.user-info-container, .score-rank, .other-links {
+  background-color: #fff;
+  margin-top: 16px;
+  margin-left: 8px;
+  padding: 16px;
+}

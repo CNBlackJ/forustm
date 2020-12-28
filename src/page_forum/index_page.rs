@@ -44,6 +44,15 @@ impl IndexPage {
         res_html!("forum/index.html", web)
     }
 
+    pub fn v2_index(req: &mut Request) -> SapperResult<Response> {
+        let mut web = get_ext_owned!(req, AppWebContext).unwrap();
+
+        let sections = Section::forum_sections();
+        web.insert("sections", &sections);
+
+        res_html!("forum/v2/index.html", web)
+    }
+
     pub fn rss_xml(req: &mut Request) -> SapperResult<Response> {
         let rss_string = rss::make_rss_feed();
 
@@ -258,6 +267,7 @@ impl SapperModule for IndexPage {
 
     fn router(&self, router: &mut SapperRouter) -> SapperResult<()> {
         router.get("/", Self::index);
+        router.get("/v2", Self::v2_index);
         router.get("/latest_articles_paging", Self::latest_articles_paging);
         router.get(
             "/latest_reply_articles_paging",
