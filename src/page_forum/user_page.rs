@@ -1,47 +1,28 @@
 use sapper::{
-    Request,
-    Response,
-    Result as SapperResult,
-    Error as SapperError,
-    Module as SapperModule,
-    Router as SapperRouter};
+    Module as SapperModule, Request, Response, Result as SapperResult, Router as SapperRouter,
+};
 use sapper_std::*;
 use uuid::Uuid;
 
-use crate::db;
-use crate::github_utils::{
-    get_github_token,
-    get_github_user_info,
-};
+use crate::github_utils::{get_github_token, get_github_user_info};
 
 use crate::envconfig;
+use crate::middleware::permission_need_login;
 use crate::util::make_pwd_encode;
 use crate::util::random_string;
-use crate::middleware::permission_need_login;
 
 // introduce macros
-use crate::{
-    AppWebContext,
-    AppUser
-};
+use crate::{AppUser, AppWebContext};
 
 use crate::dataservice::user::{
-    Ruser,
-    UserLogin,
-    UserSignUp,
-    GithubUserInfo,
-    UpdateUserNickname,
-    UserChangePassword,
+    GithubUserInfo, Ruser, UpdateUserNickname, UserChangePassword, UserLogin, UserSignUp,
 };
 
-use crate::dataservice::article::{
-    Article
-};
+use crate::dataservice::article::Article;
 
 pub struct UserPage;
 
 impl UserPage {
-
     pub fn page_login_with3rd(req: &mut Request) -> SapperResult<Response> {
         let mut web = get_ext_owned!(req, AppWebContext).unwrap();
 
@@ -63,7 +44,7 @@ impl UserPage {
             Some(user) => {
                 web.insert("user", &user);
                 return res_html!("forum/account.html", web);
-            },
+            }
             None => {
                 let client_id = envconfig::get_str_item("GITHUB_APP_CLIENT_ID");
                 web.insert("client_id", &client_id);
@@ -74,7 +55,6 @@ impl UserPage {
     }
 
     pub fn user_register(req: &mut Request) -> SapperResult<Response> {
-
         let params = get_form_params!(req);
         let account = t_param!(params, "account").to_owned();
         let password = t_param!(params, "password").to_owned();
@@ -83,7 +63,7 @@ impl UserPage {
         let user_signup = UserSignUp {
             account,
             password,
-            nickname
+            nickname,
         };
 
         // TODO: need to check the result of this call
@@ -94,15 +74,11 @@ impl UserPage {
     }
 
     pub fn user_login(req: &mut Request) -> SapperResult<Response> {
-
         let params = get_form_params!(req);
         let account = t_param!(params, "account").to_owned();
         let password = t_param!(params, "password").to_owned();
 
-        let user_login = UserLogin {
-            account,
-            password
-        };
+        let user_login = UserLogin { account, password };
 
         // use dataservice logic
         let cookie_r = user_login.verify_login();
@@ -119,7 +95,7 @@ impl UserPage {
             None,
             Some("/".to_string()),
             None,
-            Some(60*24*3600),
+            Some(60 * 24 * 3600),
         );
 
         // redirect to index
@@ -129,7 +105,6 @@ impl UserPage {
     }
 
     pub fn user_login_with_github(req: &mut Request) -> SapperResult<Response> {
-
         let params = get_query_params!(req);
         let code = t_param!(params, "code");
 
@@ -147,18 +122,14 @@ impl UserPage {
         let password;
         let cookie;
 
-
         match Ruser::get_user_by_account(&account) {
             Ok(user) => {
                 // already exists
                 password = user.password;
                 // next step auto login
-                let user_login = UserLogin {
-                        account,
-                        password
-                };
+                let user_login = UserLogin { account, password };
                 cookie = user_login.verify_login_with_rawpwd().unwrap();
-            },
+            }
             Err(_) => {
                 password = random_string(8);
                 // register it
@@ -170,10 +141,7 @@ impl UserPage {
                 // TODO: check the result
                 let _ = user_signup.sign_up(Some(github_user_info.github_address));
                 // next step auto login
-                let user_login = UserLogin {
-                        account,
-                        password
-                };
+                let user_login = UserLogin { account, password };
                 cookie = user_login.verify_login().unwrap();
             }
         }
@@ -186,7 +154,7 @@ impl UserPage {
             None,
             Some("/".to_string()),
             None,
-            Some(60*24*3600),
+            Some(60 * 24 * 3600),
         );
 
         // redirect to index
@@ -195,12 +163,11 @@ impl UserPage {
         Ok(response)
     }
 
-
     pub fn user_signout(req: &mut Request) -> SapperResult<Response> {
         match get_ext!(req, SessionVal) {
             Some(cookie) => {
                 let _ = Ruser::sign_out(cookie);
-            },
+            }
             None => {}
         }
 
@@ -221,10 +188,7 @@ impl UserPage {
         let user = get_ext!(req, AppUser).unwrap();
         let id = user.id;
 
-        let update_user_nickname = UpdateUserNickname {
-            id,
-            nickname
-        };
+        let update_user_nickname = UpdateUserNickname { id, nickname };
 
         update_user_nickname.update().unwrap();
 
@@ -250,14 +214,13 @@ impl UserPage {
         if user.password == make_pwd_encode(old_pwd, &user.salt) {
             let user_change_pwd = UserChangePassword {
                 id,
-                password: make_pwd_encode(new_pwd, &user.salt)
+                password: make_pwd_encode(new_pwd, &user.salt),
             };
 
             let _ = user_change_pwd.change();
 
             res_redirect!("/account")
-        }
-        else {
+        } else {
             res_400!("not corrent old password.")
         }
     }
@@ -282,7 +245,7 @@ impl UserPage {
                 is_login = true;
                 web.insert("is_login", &is_login);
                 web.insert("user", &user);
-            },
+            }
             None => {}
         }
 
@@ -290,7 +253,8 @@ impl UserPage {
         let total_item = Article::get_all_articles_count_by_author(user_id);
         let total_page = ((total_item - 1) / napp) as i64 + 1;
 
-        let articles = Article::get_latest_articles_paging_by_author(user_id, current_page-1, napp);
+        let articles =
+            Article::get_latest_articles_paging_by_author(user_id, current_page - 1, napp);
 
         web.insert("is_admin", &is_admin);
         web.insert("total_item", &total_item);
@@ -302,10 +266,7 @@ impl UserPage {
 
         res_html!("forum/article_list_paging.html", web)
     }
-
-
 }
-
 
 impl SapperModule for UserPage {
     fn before(&self, req: &mut Request) -> SapperResult<()> {
@@ -320,7 +281,6 @@ impl SapperModule for UserPage {
         router.get("/account", Self::account);
         router.get("/signout", Self::user_signout);
 
-
         router.post("/register", Self::user_register);
         router.post("/login", Self::user_login);
 
@@ -332,10 +292,8 @@ impl SapperModule for UserPage {
 
         router.get("/p/user/my_articles", Self::user_my_articles_page);
 
-
         // this url will be called by remote github oauth2 server
         router.get("/api/v1/login_with_github", Self::user_login_with_github);
-
 
         Ok(())
     }

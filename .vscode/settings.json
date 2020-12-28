@@ -1,0 +1,4 @@
+{
+  "rust-client.autoStartRls": false,
+  "rust-client.rlsPath": "/Users/zhangyesheng/.cargo/bin"
+}

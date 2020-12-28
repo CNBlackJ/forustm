@@ -1,43 +1,25 @@
+use chrono::*;
 use sapper::{
-    status,
-    Request,
-    Response,
-    Result as SapperResult,
-    Error as SapperError,
-    Module as SapperModule,
-    Router as SapperRouter};
+    Module as SapperModule, Request, Response, Result as SapperResult, Router as SapperRouter,
+};
 use sapper_std::*;
 use uuid::Uuid;
-use chrono::*;
 
-use crate::db;
 use crate::cache;
 // introduce macros
+use crate::{AppUser, AppWebContext};
 use sapper_std::res_html;
-use crate::{
-    AppWebContext,
-    AppUser
-};
 
-use crate::dataservice::article::{
-        Article,
-        UpdateArticleUpdatedTime
-};
-use crate::dataservice::comment::{
-    Comment,
-    CommentCreate,
-    CommentEdit
-};
+use crate::dataservice::article::{Article, UpdateArticleUpdatedTime};
+use crate::dataservice::comment::{Comment, CommentCreate, CommentEdit};
 
-use crate::util::markdown_render;
-use crate::middleware::permission_need_login;
 use crate::envconfig;
-
+use crate::middleware::permission_need_login;
+use crate::util::markdown_render;
 
 pub struct CommentPage;
 
 impl CommentPage {
-
     pub fn comment_new_page(req: &mut Request) -> SapperResult<Response> {
         let mut web = get_ext_owned!(req, AppWebContext).unwrap();
         let params = get_query_params!(req);
@@ -52,23 +34,22 @@ impl CommentPage {
                         Ok(article) => {
                             web.insert("article", &article);
                             return res_html!("forum/new_comment.html", web);
-                        },
+                        }
                         Err(_) => {
                             return res_500!("no this article.");
                         }
                     }
-                },
+                }
                 Err(_) => {
                     return res_500!("no this reply comment.");
                 }
             }
-        }
-        else {
+        } else {
             match Article::get_by_id(article_id) {
                 Ok(article) => {
                     web.insert("article", &article);
                     return res_html!("forum/new_comment.html", web);
-                },
+                }
                 Err(_) => {
                     return res_500!("no this article.");
                 }
@@ -83,16 +64,14 @@ impl CommentPage {
         let comment_id = t_param_parse!(params, "comment_id", Uuid);
 
         match Article::get_by_id(article_id) {
-            Ok(article) => {
-                match Comment::get_by_id(comment_id) {
-                    Ok(comment) => {
-                        web.insert("article", &article);
-                        web.insert("comment", &comment);
-                        return res_html!("forum/edit_comment.html", web);
-                    },
-                    Err(_) => {
-                        return res_500!("no this comment.");
-                    }
+            Ok(article) => match Comment::get_by_id(comment_id) {
+                Ok(comment) => {
+                    web.insert("article", &article);
+                    web.insert("comment", &comment);
+                    return res_html!("forum/edit_comment.html", web);
+                }
+                Err(_) => {
+                    return res_500!("no this comment.");
                 }
             },
             Err(_) => {
@@ -110,7 +89,7 @@ impl CommentPage {
             Ok(comment) => {
                 web.insert("comment", &comment);
                 return res_html!("forum/delete_comment.html", web);
-            },
+            }
             Err(_) => {
                 return res_500!("no this comment.");
             }
@@ -133,21 +112,21 @@ impl CommentPage {
             author_id,
             raw_content,
             content,
-            status: 0
+            status: 0,
         };
 
         match comment_create.insert() {
             Ok(comment) => {
-                                // update article updated_time
-                                let do_update = UpdateArticleUpdatedTime {
-                                        id: comment.article_id,
-                                        updated_time: Utc::now()
-                                };
+                // update article updated_time
+                let do_update = UpdateArticleUpdatedTime {
+                    id: comment.article_id,
+                    updated_time: Utc::now(),
+                };
 
-                                let _ = do_update.update();
+                let _ = do_update.update();
 
                 res_redirect!(format!("/article?id={}", article_id))
-            },
+            }
             Err(_) => {
                 res_500!("comment create error.")
             }
@@ -166,13 +145,13 @@ impl CommentPage {
         let comment_edit = CommentEdit {
             id,
             raw_content,
-            content
+            content,
         };
 
         match comment_edit.update() {
             Ok(comment) => {
                 res_redirect!(format!("/article?id={}", article_id))
-            },
+            }
             Err(_) => {
                 res_500!("comment edit error.")
             }
@@ -187,16 +166,13 @@ impl CommentPage {
         match Comment::delete_by_id(comment_id) {
             Ok(comment) => {
                 res_redirect!(format!("/article?id={}", article_id))
-            },
+            }
             Err(_) => {
                 res_500!("comment delete error.")
             }
         }
     }
-
-
 }
-
 
 impl SapperModule for CommentPage {
     fn before(&self, req: &mut Request) -> SapperResult<()> {
@@ -207,22 +183,18 @@ impl SapperModule for CommentPage {
 
     fn after(&self, req: &Request, res: &mut Response) -> SapperResult<()> {
         let (path, _) = req.uri();
-        if &path == "/s/comment/new"
-            || &path == "/s/comment/edit"
-            || &path == "/s/comment/delete" {
-
+        if &path == "/s/comment/new" || &path == "/s/comment/edit" || &path == "/s/comment/delete" {
             let params = get_form_params!(req);
             let article_id = t_param_parse!(params, "article_id", Uuid);
 
             let ncpp = envconfig::get_int_item("NUMBER_COMMENT_PER_PAGE");
             let n = Article::get_comments_count_belong_to_this(article_id);
-            let total_page = ((n -1) / ncpp) as i64 + 1;
+            let total_page = ((n - 1) / ncpp) as i64 + 1;
 
             for i in 1..=total_page {
                 let part_key = article_id.to_string() + ":" + &i.to_string();
                 cache::cache_set_invalid("article", &part_key);
             }
-
         }
 
         Ok(())
