@@ -1,0 +1,41 @@
+{% extends "theme/pages/layout/index.html" %}
+
+{% block title %}
+{{"title"|i18n}}-{{"index"|i18n}}
+{% endblock title %}
+
+{% block content %}
+<div>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <ul class="nav nav-pills">
+        <li role="presentation" class="active"><a href="/latest_articles_paging">{{"latest_articles"|i18n}}</a></li>
+        <li role="presentation"><a href="/latest_reply_articles_paging">{{"latest_reply_articles"|i18n}}</a></li>
+        <li role="presentation"><a href="/latest_blog_articles_paging">{{"learn_notes"|i18n}}</a></li>
+      </ul>
+    </div>
+
+    <div class="panel-body">
+      {% if articles | length  == 0 %}
+      <p>{{"no_content"|i18n}}</p>
+      {% else %}
+      <div class="article-list-container container article-list">
+        <ul>
+          {% for article in articles %}
+          <li>
+            <a href="/article?id={{ article.id }}" class="title">
+              {{ article.title }} - {{article.section_title}}
+            </a>
+            <span class="right">
+              <span class="author">{{ article.author_name }}</span>
+              <span class="timestamp ">{{article.created_time | zone8}}</span>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

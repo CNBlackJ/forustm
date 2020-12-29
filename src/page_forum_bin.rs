@@ -1,52 +1,35 @@
-#[macro_use] extern crate log;
 #[macro_use]
+extern crate log;
 extern crate serde_derive;
-use std::{env, thread};
-use env_logger;
-use dotenv::dotenv;
-use rusoda;
-use serde;
-use serde_json;
 use crossbeam::channel;
+use dotenv::dotenv;
+use env_logger;
+use rusoda;
+use std::env;
 
-use std::sync::{
-    Arc,
-    Mutex,
-};
-
-//#[macro_use] extern crate sapper_std;
 use sapper::{
-    App as SapperApp,
-    Armor as SapperArmor,
-    Result as SapperResult,
-    Request,
-    Response,
-    Key
+    App as SapperApp, Armor as SapperArmor, Key, Request, Response, Result as SapperResult,
 };
 use sapper_std::*;
 
-use rusoda::envconfig;
-use rusoda::db;
 use rusoda::cache;
 use rusoda::dataservice;
-use rusoda::util;
+use rusoda::db;
+use rusoda::envconfig;
 use rusoda::github_utils;
-use rusoda::i18n;
-use rusoda::web_filters;
 use rusoda::rss;
+use rusoda::util;
+use rusoda::web_filters;
 
 mod middleware;
 mod tantivy_index;
 
 // include page modules
 mod page_forum;
+mod theme_forum;
 
 use self::dataservice::user::Ruser;
-use self::tantivy_index::{
-    DocFromIndexOuter, TanAction, Doc2Index,
-};
-
-
+use self::tantivy_index::{Doc2Index, DocFromIndexOuter, TanAction};
 
 pub struct AppWebContext;
 impl Key for AppWebContext {
@@ -60,13 +43,12 @@ impl Key for AppUser {
 
 pub struct TanIndexTx;
 impl Key for TanIndexTx {
-   type Value = channel::Sender<(TanAction, String, Option<Doc2Index>)>;
+    type Value = channel::Sender<(TanAction, String, Option<Doc2Index>)>;
 }
 pub struct TanQueryRx;
 impl Key for TanQueryRx {
-   type Value = channel::Receiver<Vec<DocFromIndexOuter>>;
+    type Value = channel::Receiver<Vec<DocFromIndexOuter>>;
 }
-
 
 // define global smock
 struct PageForum;
@@ -87,10 +69,10 @@ impl SapperArmor for PageForum {
                             web.insert("user", &user);
                             req.ext_mut().insert::<AppUser>(user);
                         }
-                    },
+                    }
                     Err(_) => {}
                 }
-            },
+            }
             None => {}
         }
 
@@ -106,21 +88,25 @@ impl SapperArmor for PageForum {
     }
 }
 
-fn main () {
+fn main() {
     env_logger::init();
     dotenv().ok();
     //
     web_filters::register_web_filters();
 
     // create first pair channel: send directive
-    let (tan_index_tx, tan_index_rx) = channel::unbounded::<(TanAction, String, Option<Doc2Index>)>();
+    let (tan_index_tx, tan_index_rx) =
+        channel::unbounded::<(TanAction, String, Option<Doc2Index>)>();
     // create query result pair channel
     let (tan_query_tx, tan_query_rx) = channel::unbounded::<Vec<DocFromIndexOuter>>();
 
     tantivy_index::run_tantivy(tan_index_rx, tan_query_tx);
 
     let addr = env::var("BINDADDR").expect("DBURL must be set");
-    let port = env::var("BINDPORT").expect("REDISURL must be set").parse::<u32>().unwrap();
+    let port = env::var("BINDPORT")
+        .expect("REDISURL must be set")
+        .parse::<u32>()
+        .unwrap();
     let mut app = SapperApp::new();
     app.address(&addr)
         .port(port)
@@ -136,9 +122,10 @@ fn main () {
         .add_module(Box::new(page_forum::section_page::SectionPage))
         .add_module(Box::new(page_forum::article_page::ArticlePage))
         .add_module(Box::new(page_forum::comment_page::CommentPage))
+        .add_module(Box::new(theme_forum::home_page::HomePage))
+        .add_module(Box::new(theme_forum::section_page::SectionPage))
         .static_file_service(true);
 
     println!("Start listen on http://{}:{}", addr, port);
     app.run_http();
-
 }

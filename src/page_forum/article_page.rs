@@ -1,57 +1,33 @@
 use sapper::{
-    status,
-    Request,
-    Response,
-    Result as SapperResult,
-    Error as SapperError,
-    Module as SapperModule,
-    Router as SapperRouter};
+    Module as SapperModule, Request, Response, Result as SapperResult, Router as SapperRouter,
+};
 use sapper_std::*;
 use uuid::Uuid;
 
-use crate::db;
 use crate::cache;
 use crate::envconfig;
 // introduce macros
+use crate::{AppUser, AppWebContext, TanIndexTx};
 use sapper_std::res_html;
-use crate::{
-    AppWebContext,
-    AppUser,
-    TanIndexTx,
-    TanQueryRx
-};
 
-use crate::dataservice::article::{
-    Article,
-    ArticleCreate,
-    ArticleEdit
-};
+use crate::dataservice::article::{Article, ArticleCreate, ArticleEdit};
 use crate::dataservice::section::Section;
 use crate::dataservice::user::Ruser;
 
+use crate::middleware::{check_cache_switch, permission_need_be_admin, permission_need_login};
 use crate::util::markdown_render;
-use crate::middleware::{
-    permission_need_login,
-    permission_need_be_admin,
-    check_cache_switch
-};
 
 struct CommentPaginator {
     total_comments: i32,
     total_page: i32,
-    current_page: i32
+    current_page: i32,
 }
 
-use crate::tantivy_index::{
-    Doc2Index,
-    TanAction,
-
-};
+use crate::tantivy_index::{Doc2Index, TanAction};
 
 pub struct ArticlePage;
 
 impl ArticlePage {
-
     pub fn article_create_page(req: &mut Request) -> SapperResult<Response> {
         let mut web = get_ext_owned!(req, AppWebContext).unwrap();
         let params = get_query_params!(req);
@@ -61,7 +37,6 @@ impl ArticlePage {
 
         web.insert("section_id", &section_id);
         web.insert("sections", &sections);
-
 
         res_html!("forum/new_article.html", web)
     }
@@ -145,14 +120,14 @@ impl ArticlePage {
                 is_login = true;
                 web.insert("is_login", &is_login);
                 web.insert("user", &user);
-            },
+            }
             None => {}
         }
 
         let ncpp = envconfig::get_int_item("NUMBER_COMMENT_PER_PAGE");
         // retrieve comments belongs to this article, and calculate its paginator
         let total_item = Article::get_comments_count_belong_to_this(id);
-        let total_page = ((total_item -1) / ncpp) as i64 + 1;
+        let total_page = ((total_item - 1) / ncpp) as i64 + 1;
         let comments = Article::get_comments_paging_belong_to_this(id, current_page);
 
         let viewtimes = Article::get_viewtimes(article.id);
@@ -202,20 +177,22 @@ impl ArticlePage {
                 // add to tantivy index
                 let ttv_index = get_ext!(req, TanIndexTx).unwrap();
                 let doc2index = Doc2Index {
-                   article_id: article.id.to_string(),
-                   created_time: article.created_time.timestamp().to_string(),
-                   title: article.title,
-                   content: article.raw_content
+                    article_id: article.id.to_string(),
+                    created_time: article.created_time.timestamp().to_string(),
+                    title: article.title,
+                    content: article.raw_content,
                 };
-                ttv_index.send((TanAction::Add, "".to_string(), Some(doc2index))).unwrap();
+                ttv_index
+                    .send((TanAction::Add, "".to_string(), Some(doc2index)))
+                    .unwrap();
 
                 res_redirect!(format!("/article?id={}", article.id))
-            },
+            }
             Err(_) => {
                 res_500!("article create error.")
             }
         }
-     }
+    }
 
     pub fn article_edit(req: &mut Request) -> SapperResult<Response> {
         let params = get_form_params!(req);
@@ -243,15 +220,17 @@ impl ArticlePage {
             Ok(article) => {
                 let ttv_index = get_ext!(req, TanIndexTx).unwrap();
                 let doc2index = Doc2Index {
-                   article_id: article.id.to_string(),
-                   created_time: article.created_time.timestamp().to_string(),
-                   title: article.title,
-                   content: article.raw_content
+                    article_id: article.id.to_string(),
+                    created_time: article.created_time.timestamp().to_string(),
+                    title: article.title,
+                    content: article.raw_content,
                 };
-                ttv_index.send((TanAction::Update, "".to_string(), Some(doc2index))).unwrap();
+                ttv_index
+                    .send((TanAction::Update, "".to_string(), Some(doc2index)))
+                    .unwrap();
 
                 res_redirect!(format!("/article?id={}", article.id))
-            },
+            }
             Err(_) => {
                 res_500!("article edit error.")
             }
@@ -266,9 +245,11 @@ impl ArticlePage {
         match Article::delete_by_id(article_id) {
             Ok(article) => {
                 let ttv_index = get_ext!(req, TanIndexTx).unwrap();
-                ttv_index.send((TanAction::Delete, article.id.to_string(), None)).unwrap();
+                ttv_index
+                    .send((TanAction::Delete, article.id.to_string(), None))
+                    .unwrap();
                 res_redirect!(format!("/section?id={}", section_id))
-            },
+            }
             Err(_) => {
                 res_500!("article delete error.")
             }
@@ -281,7 +262,9 @@ impl ArticlePage {
         let article_id = t_param_parse!(params, "article_id", Uuid);
 
         let ttv_index = get_ext!(req, TanIndexTx).unwrap();
-        ttv_index.send((TanAction::Delete, article_id.to_string(), None)).unwrap();
+        ttv_index
+            .send((TanAction::Delete, article_id.to_string(), None))
+            .unwrap();
         res_redirect!("/")
     }
 
@@ -343,15 +326,14 @@ impl ArticlePage {
         match article_create.insert() {
             Ok(article) => {
                 res_redirect!(format!("/article?id={}", article.id))
-            },
+            }
             Err(_) => {
                 res_500!("article create error.")
             }
         }
-     }
+    }
 
-     pub fn blog_article_edit(req: &mut Request) -> SapperResult<Response> {
-
+    pub fn blog_article_edit(req: &mut Request) -> SapperResult<Response> {
         let params = get_form_params!(req);
         let id = t_param_parse!(params, "id", Uuid);
         let title = t_param!(params, "title").to_owned();
@@ -376,15 +358,13 @@ impl ArticlePage {
         match article_edit.update() {
             Ok(article) => {
                 res_redirect!(format!("/article?id={}", article.id))
-            },
+            }
             Err(_) => {
                 res_500!("article edit error.")
             }
         }
     }
-
 }
-
 
 impl SapperModule for ArticlePage {
     fn before(&self, req: &mut Request) -> SapperResult<()> {
@@ -413,22 +393,22 @@ impl SapperModule for ArticlePage {
             || &path == "/s/article/edit"
             || &path == "/s/article/delete"
             || &path == "/s/blogarticle/create"
-            || &path == "/s/blogarticle/edit" {
-
+            || &path == "/s/blogarticle/edit"
+        {
             cache::cache_set_invalid("index", "index");
         }
 
         // check other urls
         if &path == "/s/article/create"
             || &path == "/s/article/edit"
-            || &path == "/s/article/delete" {
-
+            || &path == "/s/article/delete"
+        {
             let params = get_form_params!(req);
             let section_id = t_param_parse!(params, "section_id", Uuid);
 
             let napp = envconfig::get_int_item("NUMBER_ARTICLE_PER_PAGE");
             let n = Section::get_articles_count_belong_to_this(section_id);
-            let total_page = ((n -1) / napp) as i64 + 1;
+            let total_page = ((n - 1) / napp) as i64 + 1;
 
             for i in 1..=total_page {
                 let part_key = section_id.to_string() + ":" + &i.to_string();
@@ -436,14 +416,13 @@ impl SapperModule for ArticlePage {
             }
         }
 
-        if &path == "/s/blogarticle/create"
-            || &path == "/s/blogarticle/edit" {
+        if &path == "/s/blogarticle/create" || &path == "/s/blogarticle/edit" {
             let user = get_ext!(req, AppUser).unwrap();
             let section_id = Section::get_by_suser(user.id).unwrap().id;
 
             let napp = envconfig::get_int_item("NUMBER_ARTICLE_PER_PAGE");
             let n = Section::get_articles_count_belong_to_this(section_id);
-            let total_page = ((n -1) / napp) as i64 + 1;
+            let total_page = ((n - 1) / napp) as i64 + 1;
 
             for i in 1..=total_page {
                 let part_key = section_id.to_string() + ":" + &i.to_string();
@@ -461,14 +440,12 @@ impl SapperModule for ArticlePage {
             }
         }
 
-        if &path == "/s/article/edit"
-            || &path == "/s/blogarticle/edit"  {
+        if &path == "/s/article/edit" || &path == "/s/blogarticle/edit" {
             let params = get_form_params!(req);
             let article_id = t_param!(params, "id");
 
             cache::cache_set_invalid("article", article_id);
         }
-
 
         Ok(())
     }
